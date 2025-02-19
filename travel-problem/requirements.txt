@@ -1,0 +1,4 @@
+pandas~=2.2.3
+plotly~=6.0.0
+haversine~=2.9.0
+ipython~=8.29.0
