@@ -40,6 +40,7 @@ export default {
     };
   },
   methods: {
+    // Question 1
     // Fonction pour calculer le temps total en fonction des entrées
     calculateTotalTime() {
       const temps0Arr = this.temps0.split(',').map(Number);

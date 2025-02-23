@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import Preliminaires from '../components/Preliminaires.vue';
 import Johnson from '../components/Johnson.vue';
 import Maintenance from "../components/Maintenance.vue";
+import CasGeneral from "../components/CasGeneral.vue";
 
 const routes = [
     {
@@ -19,6 +20,11 @@ const routes = [
         path: '/maintenance',
         name: 'Maintenance',
         component: Maintenance,
+    },
+    {
+        path: '/casgeneral',
+        name: 'CasGeneral',
+        component: CasGeneral,
     },
 ];
 

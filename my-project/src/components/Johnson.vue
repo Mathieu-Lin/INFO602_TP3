@@ -39,16 +39,17 @@ export default {
     };
   },
   methods: {
-    // Fonction pour calculer l'ordonnancement Johnson
-    calculateJohnsonOrder() {
-      const temps0Arr = this.temps0.split(',').map(Number);
-      const temps1Arr = this.temps1.split(',').map(Number);
-      const n = temps0Arr.length;
+    // Question 2
+    // Fonction tri_tache pour trier les tâches en fonction de tm0 et tm1
+    tri_tache(tab) {
+      // Filtrer et trier les tâches en fonction de tm0 < tm1 et tm0 >= tm1
+      const I0 = tab.filter(task => task.tm0 < task.tm1).sort((a, b) => a.tm0 - b.tm0);
+      const I1 = tab.filter(task => task.tm0 >= task.tm1).sort((a, b) => b.tm1 - a.tm1);
 
-      // Appel de la fonction johnson (utilisation de l'algorithme en C via WebAssembly ou backend)
-      this.sigma = this.johnson(n, temps0Arr, temps1Arr);
+      // Retourner les deux listes triées
+      return { I0, I1 };
     },
-
+    // Question 3
     // Simulation de la fonction Johnson en JavaScript pour l'interface
     johnson(n, temps0, temps1) {
       // Créer un tableau de tâches
@@ -57,15 +58,24 @@ export default {
         tab.push({ tm0: temps0[i], tm1: temps1[i], ind: i });
       }
 
-      // Trier les tâches
-      const I0 = tab.filter(task => task.tm0 < task.tm1).sort((a, b) => a.tm0 - b.tm0);
-      const I1 = tab.filter(task => task.tm0 >= task.tm1).sort((a, b) => b.tm1 - a.tm1);
+      // Utilisation de la fonction tri_tache pour trier les tâches
+      const { I0, I1 } = this.tri_tache(tab);
+
 
       // Concaténer I0 et I1 pour obtenir l'ordonnancement
       const orderedTasks = [...I0, ...I1];
 
       // Remplir le tableau sigma avec les indices des tâches
       return orderedTasks.map(task => task.ind);
+    },
+    // Fonction pour calculer l'ordonnancement Johnson
+    calculateJohnsonOrder() {
+      const temps0Arr = this.temps0.split(',').map(Number);
+      const temps1Arr = this.temps1.split(',').map(Number);
+      const n = temps0Arr.length;
+
+      // Appel de la fonction johnson
+      this.sigma = this.johnson(n, temps0Arr, temps1Arr);
     }
   },
 };

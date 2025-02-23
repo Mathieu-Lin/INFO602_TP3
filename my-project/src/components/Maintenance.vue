@@ -1,39 +1,49 @@
 <template>
   <div id="app">
     <div class="container">
-      <h1>Calcul du Temps Total des Opérations avec Maintenance</h1>
+      <h1>Calcul du Temps Total avec Maintenance</h1>
 
       <div class="input-box">
-        <h2>Entrez les Temps des Tâches</h2>
+        <h2>Entrée des Données</h2>
         <div class="input-group">
-          <label for="temps0">Temps sur Machine 0</label>
-          <input v-model="temps0" id="temps0" type="text" placeholder="Ex: 6,5,5,4" />
+          <label for="machineA">Temps sur Machine A</label>
+          <input v-model="machineAInput" id="machineA" type="text" placeholder="Ex: 6,5,5,4" />
         </div>
         <div class="input-group">
-          <label for="temps1">Temps sur Machine 1</label>
-          <input v-model="temps1" id="temps1" type="text" placeholder="Ex: 2,4,3,4" />
+          <label for="machineB">Temps sur Machine B</label>
+          <input v-model="machineBInput" id="machineB" type="text" placeholder="Ex: 2,4,3,4" />
         </div>
-
         <div class="input-group">
-          <label for="sigma">Ordonnancement Manuel (Index des tâches)</label>
-          <input v-model="sigma" id="sigma" type="text" placeholder="Ex: 0,1,2,3" />
+          <label for="taskOrder">Ordre des Tâches</label>
+          <input v-model="taskOrderInput" id="taskOrder" type="text" placeholder="Ex: 0,1,2,3" />
         </div>
-
         <div class="input-group">
-          <label for="maintenanceStart">Début de Maintenance sur Machine 0</label>
-          <input v-model="maintenanceStart" id="maintenanceStart" type="number" placeholder="Ex: 10" />
+          <label for="maintenanceStart">Début de Maintenance</label>
+          <input v-model.number="maintenanceStart" id="maintenanceStart" type="number" placeholder="Ex: 10" />
         </div>
-
         <div class="input-group">
-          <label for="maintenanceEnd">Fin de Maintenance sur Machine 0</label>
-          <input v-model="maintenanceEnd" id="maintenanceEnd" type="number" placeholder="Ex: 18" />
+          <label for="maintenanceEnd">Fin de Maintenance</label>
+          <input v-model.number="maintenanceEnd" id="maintenanceEnd" type="number" placeholder="Ex: 18" />
         </div>
 
-        <button @click="calculateTotalTime" class="btn">Calculer Temps Total</button>
+        <button @click="calculateTotalTime" class="btn">Calculer Temps</button>
+        <button @click="calculateOptimalOrder" class="btn secondary">Ordre Optimal</button>
+        <button @click="calculateExactSolution" class="btn secondary">Solution Exacte</button>
       </div>
 
       <div class="result-box" v-if="totalTime !== null">
-        <p><strong>Temps Total des Opérations : {{ totalTime }} minutes</strong></p>
+        <p><strong>Temps Total : {{ totalTime }} min</strong></p>
+      </div>
+
+      <div class="result-box" v-if="optimalOrder.length">
+        <p><strong>Ordre Optimal : {{ optimalOrder.join(', ') }}</strong></p>
+      </div>
+
+      <!-- Affichage du résultat exact -->
+      <div class="result-box" v-if="exactSolution !== null">
+        <p><strong>Temps Total Exact : {{ exactSolution }} min</strong></p>
+        <p><strong>Details :</strong></p>
+        <pre>{{ exactDetails }}</pre>
       </div>
     </div>
   </div>
@@ -41,67 +51,140 @@
 
 <script>
 export default {
-  /* eslint-disable vue/multi-word-component-names */
-  name: 'Maintenance',
+  name: 'MaintenanceScheduler',
   data() {
     return {
-      temps0: '', // Entrée des temps sur la machine 0
-      temps1: '', // Entrée des temps sur la machine 1
-      sigma: '',  // Ordonnancement manuel
-      maintenanceStart: '', // Début de la maintenance
-      maintenanceEnd: '', // Fin de la maintenance
-      totalTime: null, // Temps total calculé
+      machineAInput: '',
+      machineBInput: '',
+      taskOrderInput: '',
+      maintenanceStart: 0,
+      maintenanceEnd: 0,
+      totalTime: null,
+      optimalOrder: [],
+      exactSolution: null,
+      exactDetails: '',  // Détails de la solution exacte
+      memo: {}  // Stockage des résultats de la programmation dynamique
     };
   },
   methods: {
+    // Question 4
     calculateTotalTime() {
-      const temps0Arr = this.temps0.split(',').map(Number);
-      const temps1Arr = this.temps1.split(',').map(Number);
-      const sigmaArr = this.sigma.split(',').map(Number);
-      const startMaintenance = parseInt(this.maintenanceStart) || 0;
-      const endMaintenance = parseInt(this.maintenanceEnd) || 0;
-
-      // Appeler la fonction temps_total pour calculer le temps total avec maintenance
-      this.totalTime = this.temps_total(temps0Arr.length, temps0Arr, temps1Arr, sigmaArr, startMaintenance, endMaintenance);
+      const machineA = this.machineAInput.split(',').map(Number);
+      const machineB = this.machineBInput.split(',').map(Number);
+      const taskOrder = this.taskOrderInput.split(',').map(Number);
+      this.totalTime = this.computeTotalTime(machineA, machineB, taskOrder, this.maintenanceStart, this.maintenanceEnd);
     },
 
-    temps_total(n, temps0, temps1, sigma, x, y) {
-      let finTempsMachine0 = 0;
-      let finTempsMachine1 = 0;
-      let tempsTotal = 0;
+    computeTotalTime(machineA, machineB, order, maintenanceStart, maintenanceEnd) {
+      let total = machineA.reduce((sum, time) => sum + time, 0);
+      if (maintenanceStart < total) total += maintenanceEnd - maintenanceStart;
+      total += machineB[order[order.length - 1]];
 
-      for (let i = 0; i < n; i++) {
-        const tacheIndex = sigma[i];
+      let cumulativeTime = machineA[order[0]];
+      let maintenanceApplied = false;
+      let delay = 0;
 
-        // Temps de la machine 0
-        const debutMachine0 = finTempsMachine0;
-        const finMachine0 = debutMachine0 + temps0[tacheIndex];
-
-        // Si la tâche tombe pendant la maintenance, ajuster les temps
-        if (debutMachine0 >= x && debutMachine0 < y) {
-          finTempsMachine0 = y + temps0[tacheIndex]; // Reprendre après la maintenance
-        } else {
-          finTempsMachine0 = finMachine0;
+      for (let i = 0; i < order.length - 1; i++) {
+        cumulativeTime += machineA[order[i + 1]];
+        if (cumulativeTime > maintenanceStart && !maintenanceApplied) {
+          machineA[order[i + 1]] += maintenanceEnd - maintenanceStart;
+          maintenanceApplied = true;
         }
-
-        // Temps de la machine 1
-        const debutMachine1 = Math.max(finTempsMachine0, finTempsMachine1);
-        let finMachine1 = debutMachine1 + temps1[tacheIndex];
-
-        // Si la tâche se termine après la maintenance, ajuster l'heure de fin
-        if (finMachine1 < y) {
-          finMachine1 += (y - x); // Décalage en fonction de la pause
+        if (machineB[order[i]] > machineA[order[i + 1]]) {
+          delay += machineB[order[i]] - machineA[order[i + 1]];
         }
+        if (machineB[order[i]] < machineA[order[i + 1]] && delay !== 0) {
+          delay = Math.max(delay - (machineA[order[i + 1]] - machineB[order[i]]), 0);
+        }
+      }
+      return total + delay;
+    },
 
-        finTempsMachine1 = finMachine1;
-        tempsTotal = finMachine1;
+    // Question 5
+    calculateOptimalOrder() {
+      const machineA = this.machineAInput.split(',').map(Number);
+      const machineB = this.machineBInput.split(',').map(Number);
+      this.optimalOrder = this.approx(machineA, machineB, this.maintenanceStart, this.maintenanceEnd);
+    },
+
+    approx(tempsM0, tempsM1, debutMaintenance, finMaintenance) {
+      const n = tempsM0.length;
+      const tasks = [...Array(n).keys()];
+
+      const maxM1Task = tasks.reduce((maxIdx, i) => (tempsM1[i] > tempsM1[maxIdx] ? i : maxIdx), 0);
+      const remainingTasks = tasks.filter(i => i !== maxM1Task);
+      const sigma1 = [maxM1Task, ...remainingTasks];
+
+      const sigma2 = [...tasks].sort((i, j) => (tempsM1[j] / tempsM0[j]) - (tempsM1[i] / tempsM0[i]));
+
+      const time1 = this.computeTotalTime(tempsM0, tempsM1, sigma1, debutMaintenance, finMaintenance);
+      const time2 = this.computeTotalTime(tempsM0, tempsM1, sigma2, debutMaintenance, finMaintenance);
+
+      return time1 <= time2 ? sigma1 : sigma2;
+    },
+
+    // Question 6
+// Solution exacte
+    calculateExactSolution() {
+      const machineA = this.machineAInput.split(',').map(Number);
+      const machineB = this.machineBInput.split(',').map(Number);
+
+      // Initialisation des variables pour la programmation dynamique
+      const l = machineA.length;
+
+      // Calcul du temps total minimal avec les ordres de tâches
+      const { time, taskOrder } = this.computeMinimalTime(l, 0, 0, 0, 0, machineA, machineB);
+
+      // Détails de l'exécution avec l'ordre exact des tâches
+      this.exactDetails = `Programmation dynamique avec ${l} tâches.\nTemps minimal : ${time} minutes.\nOrdre des tâches : ${taskOrder.join(', ')}`;
+
+      // Affichage du résultat
+      this.exactSolution = time;
+    },
+
+// Programmation dynamique pour obtenir l'ordre des tâches exact
+    computeMinimalTime(l, u0, u1, v0, v1, machineA, machineB, taskOrder = []) {
+      const memoKey = `${l}-${u0}-${u1}-${v0}-${v1}`;
+      if (this.memo[memoKey] !== undefined) {
+        return this.memo[memoKey];
       }
 
-      return tempsTotal;
-    },
-  },
+      if (l === 0) {
+        return {
+          time: Math.max(u0, v0) + machineB[0],
+          taskOrder
+        };
+      }
+
+      let minTime = Infinity;
+      let bestTaskOrder = [];
+
+      for (let i = 0; i < l; i++) {
+        const newU0 = Math.max(u0, machineA[i]);
+        const newV0 = v0 + machineA[i];
+        const newU1 = Math.max(u1, newV0 + machineB[i]);
+        const newV1 = newV0 + machineB[i];
+
+        const { time, taskOrder: newTaskOrder } = this.computeMinimalTime(
+            l - 1, newU0, newU1, newV0, newV1, machineA, machineB,
+            [...taskOrder, i]
+        );
+
+        if (time < minTime) {
+          minTime = time;
+          bestTaskOrder = newTaskOrder;
+        }
+      }
+
+      this.memo[memoKey] = { time: minTime, taskOrder: bestTaskOrder };
+      return { time: minTime, taskOrder: bestTaskOrder };
+    }
+
+  }
 };
+
 </script>
+
 
 <style scoped>
 #app {
@@ -112,18 +195,17 @@ export default {
 
 .container {
   width: 80%;
-  margin: 0 auto;
+  margin: auto;
 }
 
 h1 {
-  font-size: 2.5em;
+  font-size: 2em;
   color: #4CAF50;
 }
 
 .input-box {
-  background-color: #f9f9f9;
+  background: #f9f9f9;
   padding: 20px;
-  margin-bottom: 20px;
   border-radius: 8px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
@@ -133,36 +215,32 @@ h1 {
 }
 
 .input-group label {
-  display: block;
-  font-size: 1.2em;
-  margin-bottom: 5px;
+  font-size: 1.1em;
 }
 
 .input-group input {
   width: 100%;
-  padding: 10px;
-  font-size: 1.1em;
+  padding: 8px;
   border-radius: 5px;
   border: 1px solid #ccc;
 }
 
 .btn {
-  background-color: #4CAF50;
+  background: #4CAF50;
   color: white;
+  padding: 10px 15px;
   border: none;
-  padding: 15px 20px;
-  font-size: 1.2em;
   cursor: pointer;
   border-radius: 5px;
-  transition: background-color 0.3s ease;
+  margin: 5px;
 }
 
-.btn:hover {
-  background-color: #45a049;
+.btn.secondary {
+  background: #008CBA;
 }
 
 .result-box {
-  font-size: 1.5em;
+  font-size: 1.3em;
   font-weight: bold;
   margin-top: 20px;
   color: #4CAF50;

@@ -1,2 +1,11 @@
 # INFO602_TP3
-The traveling salesman problem
+
+## Guide d'exécution : 
+```
+cd my-project
+npm run serve
+```
+
+## Collaborateur
+
+- Mathieu LIN L3-Informatique de l'Université Savoie Mont-Blanc
